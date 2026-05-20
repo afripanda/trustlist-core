@@ -15,6 +15,8 @@ dependencies = [
   "opentelemetry-exporter-otlp>=1.27",
   "argon2-cffi>=23.1",
   "pyotp>=2.9",
+  "confluent-kafka[schemaregistry]>=2.5",
+  "jsonschema>=4.20",
 ]
 
 [dependency-groups]
@@ -22,6 +24,7 @@ dev = [
   "ruff>=0.8",
   "mypy>=1.13",
   "pytest>=8.3",
+  "types-jsonschema>=4.20",
 ]
 
 [tool.uv]
@@ -43,10 +46,11 @@ extend-exclude = ["data-model/migrations/versions"]
 select = ["E", "F", "I", "W", "UP", "B"]
 
 [tool.ruff.lint.isort]
-# trustlist_data_model lives under data-model/ and trustlist_auth under auth/,
-# rather than the repo root, so ruff cannot infer they are first-party; declare
-# them so import blocks sort them alongside the project's own modules.
-known-first-party = ["trustlist_auth", "trustlist_data_model"]
+# The first-party packages live under their component directories (data-model/,
+# auth/, event-bus-sdk/) rather than the repo root, so ruff cannot infer they
+# are first-party; declare them so import blocks sort them alongside the
+# project's own modules.
+known-first-party = ["trustlist_auth", "trustlist_data_model", "trustlist_event_bus"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -55,8 +59,8 @@ strict = true
 # below: those files are machine-generated and strict-checking them is
 # impractical (untyped Alembic op helpers, generated boilerplate). The migration
 # logic that matters — the canonical schema — is the type-checked ORM models.
-files = ["tests", "ci", "data-model", "observability", "auth"]
-mypy_path = "data-model:auth"
+files = ["tests", "ci", "data-model", "observability", "auth", "event-bus-sdk"]
+mypy_path = "data-model:auth:event-bus-sdk"
 exclude = ["data-model/migrations/versions/"]
 
 [[tool.mypy.overrides]]
@@ -67,7 +71,7 @@ ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["data-model", "auth"]
+pythonpath = ["data-model", "auth", "event-bus-sdk"]
 markers = [
   "integration: tests requiring real backing services (Postgres, RedPanda) — see docker-compose.dev.yml",
 ]
