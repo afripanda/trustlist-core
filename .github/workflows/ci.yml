@@ -98,6 +98,85 @@ jobs:
       - name: Run integration tests
         run: uv run pytest -m integration
 
+  # --- TypeScript event-bus SDK (Stage 0 issue 14) -------------------------
+  # The TypeScript SDK lives in event-bus-sdk/typescript/ and is wire-compatible
+  # with the Python SDK. These jobs are additional to the eight Python gates;
+  # branch protection's required-status-checks list still names only the Python
+  # jobs, so the TS jobs run and are visible on every PR but are not yet
+  # "required" — the required list is extended separately by the technical lead.
+
+  typescript-checks:
+    # Lint, type-check, payload-type-drift check, build and unit tests for the
+    # TypeScript SDK. No broker needed — the unit suite is broker-free.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: event-bus-sdk/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: event-bus-sdk/typescript/package-lock.json
+      - run: npm ci
+      - name: Check generated payload types are in sync with event-schema/
+        # Issue 14: payload types are generated from the event-schema/ JSON
+        # Schemas and checked into the repo. Regenerate and fail if the
+        # committed output drifts from what the current schemas produce.
+        run: |
+          npm run generate-types
+          git diff --exit-code src/generated
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm run build
+      - run: npm run test:unit
+
+  typescript-integration:
+    # The TypeScript SDK integration suite runs a real produce -> consume
+    # round-trip against a real RedPanda — no mocks (Stage 0 PRD §7a / §7b) —
+    # and a cross-language wire-interoperability test (a Python-produced wire
+    # envelope consumed by the TypeScript consumer).
+    #
+    # The job runs *inside a container* so it shares the Docker network with
+    # the RedPanda service container, reachable by its service label (mirrors
+    # the Python integration-tests job).
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-bookworm-slim
+    services:
+      redpanda:
+        image: redpandadata/redpanda:v24.2.7
+        # ENABLE_DEFAULT_LISTENERS / INTERNAL pin the advertised broker
+        # hostname to the `redpanda` service alias so the job container can
+        # resolve it; the built-in schema registry comes up on port 8081.
+        env:
+          ENABLE_DEFAULT_LISTENERS: "true"
+          INTERNAL: redpanda
+        options: >-
+          --health-cmd "rpk cluster health | grep -q 'Healthy:.*true'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: event-bus-sdk/typescript
+    env:
+      # Connection details reach the SDK through the environment only — never
+      # hard-coded (PRD §7b / §7g). Inside the job container the RedPanda
+      # service is addressed by its service label.
+      TRUSTLIST_EVENT_BUS_BROKERS: redpanda:9092
+      TRUSTLIST_SCHEMA_REGISTRY_URL: http://redpanda:8081
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: event-bus-sdk/typescript/package-lock.json
+      - run: npm ci
+      - run: npm run test:integration
+
   licence-header:
     runs-on: ubuntu-latest
     steps:
