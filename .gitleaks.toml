@@ -1,0 +1,14 @@
+# gitleaks configuration for trustlist-core.
+#
+# Extends the default gitleaks ruleset and allowlists the local-development
+# compose file, whose credentials (for example POSTGRES_PASSWORD: trustlist-dev)
+# are throwaway values for ephemeral local containers, not real secrets.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local-development credentials are not real secrets."
+paths = [
+  '''docker-compose\.dev\.yml''',
+]
