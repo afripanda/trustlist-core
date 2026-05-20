@@ -38,13 +38,36 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    # Integration tests run against a real, ephemeral Postgres — no mocks
+    # (Stage 0 PRD §7a). The data-model suite (Stage 0 issue 12) is wired here;
+    # the event-bus suites (issues 11, 13) add a RedPanda service later.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trustlist
+          POSTGRES_PASSWORD: trustlist-dev
+          POSTGRES_DB: trustlist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trustlist"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TRUSTLIST_DB_URL: postgresql+psycopg://trustlist:trustlist-dev@localhost:5432/trustlist
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder
-        run: |
-          echo "Integration tests run against real Postgres + RedPanda."
-          echo "They are wired in later Stage 0 issues (11, 12, 13)."
-          echo "Placeholder job — intentionally green on the initial skeleton."
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: Apply canonical-store migrations
+        working-directory: data-model
+        run: uv run alembic upgrade head
+      - name: Run integration tests
+        run: uv run pytest -m integration
 
   licence-header:
     runs-on: ubuntu-latest

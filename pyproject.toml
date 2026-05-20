@@ -6,14 +6,17 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [{ name = "The TrustList Foundation" }]
-dependencies = []
+dependencies = [
+  "sqlalchemy>=2.0",
+  "alembic>=1.14",
+  "psycopg[binary]>=3.2",
+]
 
 [dependency-groups]
 dev = [
   "ruff>=0.8",
   "mypy>=1.13",
   "pytest>=8.3",
-  "alembic>=1.14",
 ]
 
 [tool.uv]
@@ -22,17 +25,44 @@ package = false
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# The Alembic migrations/versions/ tree is excluded from linting. Future
+# migrations are produced by `alembic revision --autogenerate` from a fixed
+# template (script.py.mako) whose conditional import blocks and blank lines do
+# not survive isort/format checks. The licence-header check skips the same
+# directory (ci/check_license_headers.py SKIP_DIRS), so this is consistent with
+# the existing project convention for machine-generated migration files. See
+# data-model/README.md.
+extend-exclude = ["data-model/migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B"]
 
+[tool.ruff.lint.isort]
+# trustlist_data_model lives under data-model/ rather than the repo root, so
+# ruff cannot infer it is first-party; declare it so import blocks sort it
+# alongside the project's own modules.
+known-first-party = ["trustlist_data_model"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["tests", "ci"]
+# data-model carries the ORM models. The migrations/versions/ tree is excluded
+# below: those files are machine-generated and strict-checking them is
+# impractical (untyped Alembic op helpers, generated boilerplate). The migration
+# logic that matters — the canonical schema — is the type-checked ORM models.
+files = ["tests", "ci", "data-model"]
+mypy_path = "data-model"
+exclude = ["data-model/migrations/versions/"]
+
+[[tool.mypy.overrides]]
+# env.py is Alembic-framework glue executed by Alembic's own runner, not part of
+# the application's typed surface; the alembic.context API is loosely typed.
+module = "env"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["data-model"]
 markers = [
   "integration: tests requiring real backing services (Postgres, RedPanda) — see docker-compose.dev.yml",
 ]
