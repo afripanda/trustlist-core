@@ -69,6 +69,42 @@ licence-header check, secret-leak scan, the reproducibility test, and a
 Conventional Commits message check. The `main` branch is protected — merging
 requires CI green plus technical-lead approval.
 
+## End-to-end smoke test
+
+`tests/smoke/` holds the Stage 0 end-to-end smoke test (PRD §8 acceptance
+criterion 2): the synthetic-signal round-trip that proves a signal flows
+producer → event bus → evidence-writer → canonical store. It comprises the
+evidence-writer service stub (`tests/smoke/evidence_writer.py`) and the
+integration harness (`tests/smoke/test_smoke_roundtrip.py`). It runs as an
+`@pytest.mark.integration` test, so the CI `integration-tests` job — which
+already stands up Postgres and RedPanda — picks it up via `pytest -m integration`.
+
+To run it locally, stand up isolated containers on distinct high ports (the
+`docker-compose.dev.yml` and `mvp0-*` containers occupy the standard ports),
+apply the migrations and export the connection details:
+
+```sh
+docker run -d --name trustlist-issue22-pg \
+  -e POSTGRES_USER=trustlist -e POSTGRES_PASSWORD=trustlist-dev \
+  -e POSTGRES_DB=trustlist -p 55432:5432 postgres:16
+
+docker run -d --name trustlist-issue22-redpanda \
+  -p 19293:19293 -p 18193:18193 -p 18194:18194 \
+  redpandadata/redpanda:v24.2.7 \
+  redpanda start --mode dev-container --smp 1 \
+  --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19293 \
+  --advertise-kafka-addr internal://localhost:9092,external://localhost:19293 \
+  --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18193 \
+  --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18194 \
+  --rpc-addr 0.0.0.0:33145 --advertise-rpc-addr localhost:33145
+
+export TRUSTLIST_DB_URL=postgresql+psycopg://trustlist:trustlist-dev@localhost:55432/trustlist
+export TRUSTLIST_EVENT_BUS_BROKERS=localhost:19293
+export TRUSTLIST_SCHEMA_REGISTRY_URL=http://localhost:18193
+(cd data-model && uv run alembic upgrade head)
+uv run pytest -m integration tests/smoke
+```
+
 ## Contributing
 
 Pull requests must use the template in `.github/pull_request_template.md`, which
