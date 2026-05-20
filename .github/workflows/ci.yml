@@ -38,9 +38,19 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
-    # Integration tests run against a real, ephemeral Postgres — no mocks
-    # (Stage 0 PRD §7a). The data-model suite (Stage 0 issue 12) is wired here;
-    # the event-bus suites (issues 11, 13) add a RedPanda service later.
+    # Integration tests run against real, ephemeral backing services — no
+    # mocks (Stage 0 PRD §7a / §7b). The data-model suite (Stage 0 issue 12)
+    # exercises Postgres; the event-bus SDK suite (issue 13) exercises a real
+    # RedPanda and its built-in schema registry (ADR-0011).
+    #
+    # The job runs *inside a container* so it shares the Docker network with
+    # the service containers: each service is then reachable by its service
+    # label as a hostname (`postgres`, `redpanda`). This is what lets RedPanda
+    # advertise a resolvable broker address — its `ENABLE_DEFAULT_LISTENERS`
+    # mode advertises the `redpanda` service alias, which a host-with-port-
+    # mapping client could not reach.
+    container:
+      image: python:3.12-slim
     services:
       postgres:
         image: postgres:16
@@ -48,15 +58,34 @@ jobs:
           POSTGRES_USER: trustlist
           POSTGRES_PASSWORD: trustlist-dev
           POSTGRES_DB: trustlist
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U trustlist"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redpanda:
+        image: redpandadata/redpanda:v24.2.7
+        # ENABLE_DEFAULT_LISTENERS makes the stock image start RedPanda with
+        # auto-configured listeners (no command override, which a GitHub
+        # Actions `services:` block cannot supply). INTERNAL pins the
+        # advertised broker hostname to the `redpanda` service alias so the
+        # job container can resolve it. The built-in schema registry comes up
+        # alongside on the standard port 8081.
+        env:
+          ENABLE_DEFAULT_LISTENERS: "true"
+          INTERNAL: redpanda
+        options: >-
+          --health-cmd "rpk cluster health | grep -q 'Healthy:.*true'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
     env:
-      TRUSTLIST_DB_URL: postgresql+psycopg://trustlist:trustlist-dev@localhost:5432/trustlist
+      # Connection details reach the SDK and the migrations through the
+      # environment only — never hard-coded (PRD §7b / §7g). Inside the job
+      # container the services are addressed by their service label.
+      TRUSTLIST_DB_URL: postgresql+psycopg://trustlist:trustlist-dev@postgres:5432/trustlist
+      TRUSTLIST_EVENT_BUS_BROKERS: redpanda:9092
+      TRUSTLIST_SCHEMA_REGISTRY_URL: http://redpanda:8081
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

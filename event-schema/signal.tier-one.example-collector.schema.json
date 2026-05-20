@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.trustlist.org/event/signal.tier-one.example-collector/1.0.0",
+  "title": "Tier-one example-collector signal payload",
+  "description": "The payload body of a tier-one signal event emitted by the example collector. Carried inside the §7b event envelope on the signal.tier-one.example-collector topic. This is the synthetic signal exercised by the Stage 0 acceptance round-trip (PRD §8.2); first-party signal collectors land their real payload schemas in Stage 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "domain_id",
+    "signal_class",
+    "observed_at",
+    "observed_value"
+  ],
+  "properties": {
+    "domain_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The domain the observation concerns; also the topic partition key (PRD §7b)."
+    },
+    "signal_class": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The signal class — for example 'dns' or 'content' (§7a evidence.signal_class)."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "The per-source-URL granularity key for content-derived signals (§7a evidence_current natural key). Empty string when not source-URL scoped."
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the observation was made (§7a evidence.observed_at)."
+    },
+    "observed_value": {
+      "type": "object",
+      "description": "The observed value, a free-form JSON object (§7a evidence.observed_value is jsonb)."
+    }
+  }
+}
