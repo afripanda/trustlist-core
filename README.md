@@ -69,6 +69,12 @@ licence-header check, secret-leak scan, the reproducibility test, and a
 Conventional Commits message check. The `main` branch is protected — merging
 requires CI green plus technical-lead approval.
 
+The `reproducibility` job, like the `integration-tests` job, runs inside a
+container with a real Postgres and a real RedPanda as `services:` — the
+reproducibility test exercises the full event-bus → canonical-store path and
+re-migrates the schema between runs, so it needs the same real backing services
+the smoke test does.
+
 ## End-to-end smoke test
 
 `tests/smoke/` holds the Stage 0 end-to-end smoke test (PRD §8 acceptance
@@ -104,6 +110,31 @@ export TRUSTLIST_SCHEMA_REGISTRY_URL=http://localhost:18193
 (cd data-model && uv run alembic upgrade head)
 uv run pytest -m integration tests/smoke
 ```
+
+## Reproducibility test
+
+`tests/reproducibility/` holds the Stage 0 reproducibility test (PRD §8
+acceptance criterion 5): it processes a deterministic fixture signal — the same
+fixed synthetic event the smoke test uses — through the canonical store, asserts
+the resulting `domain` / `provenance` / `evidence` rows are *exactly* the
+checked-in expected snapshot (`expected_snapshot.json`), then re-runs against a
+freshly-migrated database and asserts the rows are byte-identical (modulo the
+unavoidably-varying surrogate UUIDs and `now()` timestamps, which it asserts are
+the only difference). It extends the smoke-test harness and runs as an
+`@pytest.mark.integration` test.
+
+It needs the same isolated containers and connection variables as the smoke test
+(above); the dedicated CI `reproducibility` job stands up its own Postgres and
+RedPanda. To run it locally, with the variables exported and the migrations
+applied:
+
+```sh
+uv run pytest -m integration tests/reproducibility
+```
+
+If a deliberate change to the data model or the evidence-writer alters the
+canonical store's deterministic output, regenerate `expected_snapshot.json` and
+review the diff before committing.
 
 ## Contributing
 

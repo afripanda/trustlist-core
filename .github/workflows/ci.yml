@@ -209,13 +209,69 @@ jobs:
 
   reproducibility:
     runs-on: ubuntu-latest
+    # The Stage 0 reproducibility test (PRD §8 acceptance criterion 5, issue 24)
+    # replays a fixture signal end-to-end through the canonical store and asserts
+    # the resulting rows are byte-identical across a re-run against a freshly-
+    # migrated database. It extends the smoke-test harness, so — like that
+    # harness — it needs *real* backing services: a real Postgres canonical store
+    # and a real RedPanda event bus (PRD §7a / §7b: no mocks). The job therefore
+    # mirrors the integration-tests job's containerised pattern rather than the
+    # earlier service-free placeholder.
+    #
+    # The job runs *inside a container* so it shares the Docker network with the
+    # service containers, each reachable by its service label as a hostname
+    # (`postgres`, `redpanda`) — the same RedPanda advertised-listener reasoning
+    # documented on the integration-tests job applies here unchanged.
+    #
+    # The job id is kept exactly `reproducibility`: branch protection's required-
+    # status-checks list names it, so renaming it would break merges.
+    container:
+      image: python:3.12-slim
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trustlist
+          POSTGRES_PASSWORD: trustlist-dev
+          POSTGRES_DB: trustlist
+        options: >-
+          --health-cmd "pg_isready -U trustlist"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redpanda:
+        image: redpandadata/redpanda:v24.2.7
+        # ENABLE_DEFAULT_LISTENERS / INTERNAL pin the advertised broker hostname
+        # to the `redpanda` service alias so the job container can resolve it;
+        # the built-in schema registry comes up on the standard port 8081.
+        env:
+          ENABLE_DEFAULT_LISTENERS: "true"
+          INTERNAL: redpanda
+        options: >-
+          --health-cmd "rpk cluster health | grep -q 'Healthy:.*true'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Connection details reach the SDK and the migrations through the
+      # environment only — never hard-coded (PRD §7b / §7g). Inside the job
+      # container the services are addressed by their service label. The
+      # reproducibility test's `fresh_migrate` fixture re-runs `alembic upgrade
+      # head` itself between runs, also driven by TRUSTLIST_DB_URL.
+      TRUSTLIST_DB_URL: postgresql+psycopg://trustlist:trustlist-dev@postgres:5432/trustlist
+      TRUSTLIST_EVENT_BUS_BROKERS: redpanda:9092
+      TRUSTLIST_SCHEMA_REGISTRY_URL: http://redpanda:8081
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - run: uv sync
-      - run: uv run pytest tests/test_reproducibility.py
+      - name: Apply canonical-store migrations
+        working-directory: data-model
+        run: uv run alembic upgrade head
+      - name: Run the reproducibility test
+        run: uv run pytest -m integration tests/reproducibility
 
   commit-lint:
     if: github.event_name == 'pull_request'
