@@ -1,14 +1,24 @@
 # gitleaks configuration for trustlist-core.
 #
-# Extends the default gitleaks ruleset and allowlists the local-development
-# compose file, whose credentials (for example POSTGRES_PASSWORD: trustlist-dev)
-# are throwaway values for ephemeral local containers, not real secrets.
+# Extends the default gitleaks ruleset and allowlists files whose
+# high-entropy-looking strings are not secrets:
+#
+# - the local-development compose file, whose credentials (for example
+#   POSTGRES_PASSWORD: trustlist-dev) are throwaway values for ephemeral local
+#   containers;
+# - the event-bus SDK's cross-language parity fixtures, which carry SHA-256
+#   idempotency-key digests — deterministic hashes of public test payloads,
+#   produced by the Python SDK and asserted byte-identical by the TypeScript
+#   SDK. gitleaks' generic-api-key rule reads a 64-char hex digest as a
+#   possible API key; these are test vectors, not credentials.
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Local-development credentials are not real secrets."
+description = "Throwaway local credentials and SHA-256 test fixtures are not real secrets."
 paths = [
   '''docker-compose\.dev\.yml''',
+  '''event-bus-sdk/typescript/test/unit/cross-language-parity\.ts''',
+  '''event-bus-sdk/typescript/test/integration/cross-language\.test\.ts''',
 ]
