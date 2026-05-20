@@ -14,9 +14,14 @@
 
 """Alembic migration environment for the TrustList canonical store.
 
-The canonical models and migrations land in Stage 0 issue 12; this file is the
-wiring only. The database URL is read from the TRUSTLIST_DB_URL environment
-variable so that no credentials live in the repository (Stage 0 PRD §7g).
+The database URL is read from the TRUSTLIST_DB_URL environment variable so that
+no credentials live in the repository (Stage 0 PRD §7g). ``target_metadata`` is
+wired to the ORM models in ``trustlist_data_model`` so that ``alembic revision
+--autogenerate`` compares against the canonical schema (Stage 0 issue 12).
+
+``alembic.ini`` carries ``prepend_sys_path = .``, which puts the ``data-model``
+directory (the one holding ``alembic.ini``) on ``sys.path`` — that is what makes
+the ``trustlist_data_model`` import below resolve when Alembic runs.
 """
 
 import os
@@ -24,14 +29,17 @@ import os
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from trustlist_data_model import metadata as _trustlist_metadata
+
 config = context.config
 
 _db_url = os.environ.get("TRUSTLIST_DB_URL")
 if _db_url:
     config.set_main_option("sqlalchemy.url", _db_url)
 
-# Populated in Stage 0 issue 12 once the ORM models exist.
-target_metadata = None
+# The single source of truth for the canonical schema — see
+# trustlist_data_model.models. Autogenerate diffs the live database against it.
+target_metadata = _trustlist_metadata
 
 
 def run_migrations_offline() -> None:
