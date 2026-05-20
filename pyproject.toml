@@ -1,0 +1,38 @@
+[project]
+name = "trustlist-core"
+version = "0.0.0"
+description = "Canonical foundation monorepo for the TrustList ad-trust dataset: data model, event-bus SDKs, scoring-engine kernel, signal-collector framework and shared libraries."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "The TrustList Foundation" }]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "alembic>=1.14",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["tests", "ci"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "integration: tests requiring real backing services (Postgres, RedPanda) — see docker-compose.dev.yml",
+]
