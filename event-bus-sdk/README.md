@@ -8,13 +8,23 @@ propagation and back-pressure handling, per Stage 0 PRD §7b.
 | Package | Language | Directory | Status |
 | --- | --- | --- | --- |
 | `trustlist_event_bus` | Python | `trustlist_event_bus/` | Implemented — Stage 0 issue 13. |
-| TypeScript SDK | TypeScript | _to be added_ | Placeholder — Stage 0 issue 14. |
+| `@trustlist/event-bus-sdk` | TypeScript | `typescript/` | Implemented — Stage 0 issue 14. |
 
 The Python package name is `trustlist_event_bus` (a valid Python identifier)
 inside the hyphenated `event-bus-sdk/` directory, mirroring the
-`data-model/trustlist_data_model/` precedent. The SDK is versioned
-independently of `trustlist-core` and follows semver
-(`trustlist_event_bus.__version__`).
+`data-model/trustlist_data_model/` precedent. The TypeScript package lives in
+the `typescript/` subdirectory, cleanly separate from the Python package. Both
+SDKs are versioned independently of `trustlist-core` and follow semver.
+
+## Wire interoperability
+
+The two SDKs are **wire-interoperable**: a Python-produced event is consumable
+by the TypeScript consumer and vice versa. The event envelope serialises to
+byte-identical JSON in both languages, and the idempotency-key derivation is
+byte-identical — the same logical event collides on one key regardless of which
+SDK produced it, which is what makes cross-language consumer-side
+deduplication work. The TypeScript SDK's unit suite asserts this parity
+against reference values produced by the Python SDK.
 
 ## Python SDK — `trustlist_event_bus`
 

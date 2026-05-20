@@ -18,6 +18,14 @@ Run from CI (`python ci/check_license_headers.py`) or locally. Exits 0 when
 every checked source file carries the header — and also exits 0 when there are
 no source files yet, since the CI wiring is intentionally green on an empty
 skeleton. Exits 1, listing the offending files, when any header is missing.
+
+Checked file types are Python (`.py`) and TypeScript (`.ts`) sources. The
+header marker substring is the same for both — only the comment markers differ
+(`# ` for Python, `// ` for TypeScript) — so a single substring search covers
+both. The TypeScript event-bus SDK landed the `.ts` coverage (Stage 0 issue
+14); machine-generated files (the Alembic `versions/` tree, the SDK's
+`generated/` payload types) are skipped, consistent with the project's
+convention for generated code.
 """
 
 import sys
@@ -27,7 +35,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 MARKER = 'Licensed under the Apache License, Version 2.0'
 
-CHECKED_SUFFIXES = ('.py',)
+# Python and TypeScript sources. The licence-header text is identical; only the
+# per-language comment markers differ (`# ` vs `// `), and the marker substring
+# search is comment-marker agnostic.
+CHECKED_SUFFIXES = ('.py', '.ts')
 
 SKIP_DIRS = {
     '.git',
@@ -39,6 +50,9 @@ SKIP_DIRS = {
     '.pytest_cache',
     'node_modules',
     'versions',
+    # Compiled / coverage output of the TypeScript SDK build.
+    'dist',
+    'coverage',
 }
 
 
