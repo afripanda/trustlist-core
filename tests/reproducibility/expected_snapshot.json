@@ -1,0 +1,36 @@
+{
+  "domain": [
+    {
+      "current_score": null,
+      "current_status": "under_review",
+      "last_scored_at": null,
+      "normalised_url": "00000000-0000-4000-8000-000000000022.smoke.trustlist.test",
+      "score_version": null
+    }
+  ],
+  "evidence": [
+    {
+      "contributor_identity": null,
+      "domain_id": "<domain:0>",
+      "method": "dns-probe",
+      "observed_at": "2026-05-20T12:00:00+00:00",
+      "observed_value": {
+        "record_count": 3,
+        "resolves": true
+      },
+      "provenance_id": "<provenance:0>",
+      "signal_class": "dns",
+      "source": "system",
+      "source_url": ""
+    }
+  ],
+  "provenance": [
+    {
+      "contributor_id": null,
+      "contributor_identity": null,
+      "method": "evidence-writer-stub:b5c5c89a4a43922530d29c799ae99a7838c7f1ba52842fcf4e1781a83397b819",
+      "observed_at": "2026-05-20T12:00:00+00:00",
+      "source": "system"
+    }
+  ]
+}
