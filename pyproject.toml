@@ -6,7 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [{ name = "The TrustList Foundation" }]
-dependencies = []
+dependencies = [
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp>=1.27",
+]
 
 [dependency-groups]
 dev = [
@@ -29,7 +33,7 @@ select = ["E", "F", "I", "W", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["tests", "ci"]
+files = ["observability", "tests", "ci"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
