@@ -18,10 +18,14 @@ build/
 
 # Terraform
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfvars
 crash.log
+# The infra environment tfvars carry only non-secret config (instance sizes,
+# account IDs) and are tracked deliberately.
+!infra/terraform/**/*.tfvars
 
 # Secrets / environment — never commit credentials.
 .env
