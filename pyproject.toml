@@ -10,6 +10,9 @@ dependencies = [
   "sqlalchemy>=2.0",
   "alembic>=1.14",
   "psycopg[binary]>=3.2",
+  "opentelemetry-api>=1.27",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp>=1.27",
 ]
 
 [dependency-groups]
@@ -50,7 +53,7 @@ strict = true
 # below: those files are machine-generated and strict-checking them is
 # impractical (untyped Alembic op helpers, generated boilerplate). The migration
 # logic that matters — the canonical schema — is the type-checked ORM models.
-files = ["tests", "ci", "data-model"]
+files = ["tests", "ci", "data-model", "observability"]
 mypy_path = "data-model"
 exclude = ["data-model/migrations/versions/"]
 
